@@ -41,6 +41,9 @@ h1 {
     height: 100%;
     perspective: 1000px;
     cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .card-inner {

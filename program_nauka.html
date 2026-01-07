@@ -660,6 +660,95 @@
         randomBtn.addEventListener('click', toggleRandomMode);
         favFilterBtn.addEventListener('click', toggleFavFilter);
 
+                // --- OBSŁUGA GESTÓW (SWIPE) NA TELEFONIE ---
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isDragging = false;
+        let currentCardElement = null;
+
+        cardContainer.addEventListener('touchstart', (e) => {
+            currentCardElement = e.target.closest('.card');
+            if (!currentCardElement) return;
+            // Ignoruj jeśli dotknięto przycisku (np. diabełka)
+            if (e.target.closest('button')) return;
+
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            isDragging = true;
+            currentCardElement.style.transition = 'none'; // Brak opóźnienia przy przeciąganiu
+        }, { passive: true });
+
+        cardContainer.addEventListener('touchmove', (e) => {
+            if (!isDragging || !currentCardElement) return;
+
+            const touch = e.touches[0];
+            const currentX = touch.clientX;
+            const currentY = touch.clientY;
+            const deltaX = currentX - touchStartX;
+            const deltaY = currentY - touchStartY;
+
+            // Jeśli przeważa ruch pionowy, pozwalamy na scroll strony
+            if (Math.abs(deltaY) > Math.abs(deltaX) + 10) return;
+
+            const rotation = deltaX * 0.05;
+            currentCardElement.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
+        }, { passive: true });
+
+        cardContainer.addEventListener('touchend', (e) => {
+            if (!isDragging || !currentCardElement) return;
+            isDragging = false;
+
+            const touch = e.changedTouches[0];
+            const endX = touch.clientX;
+            const deltaX = endX - touchStartX;
+            const threshold = 80; // Próg przesunięcia
+
+            if (deltaX < -threshold) {
+                finishSwipe('left');
+            } else if (deltaX > threshold) {
+                finishSwipe('right');
+            } else {
+                // Powrót
+                currentCardElement.style.transition = 'transform 0.3s ease-out';
+                currentCardElement.style.transform = 'translateX(0) rotate(0)';
+            }
+            currentCardElement = null;
+        });
+
+        function finishSwipe(direction) {
+            if (!currentCardElement) return;
+            
+            const screenW = window.innerWidth;
+            // Wyrzucamy daleko poza ekran
+            const endX = direction === 'left' ? -screenW : screenW;
+            const rotation = direction === 'left' ? -30 : 30;
+
+            currentCardElement.style.transition = 'transform 0.3s ease-in, opacity 0.3s linear';
+            currentCardElement.style.transform = `translateX(${endX}px) rotate(${rotation}deg)`;
+            currentCardElement.style.opacity = '0';
+
+            setTimeout(() => {
+                if (direction === 'left') {
+                    // Swipe w lewo = NASTĘPNA
+                    if (currentIndex < currentData.length - 1 || isRandomMode) {
+                        nextCard();
+                    } else {
+                        // Koniec listy - przywróć kartę
+                        renderCard(currentIndex);
+                    }
+                } else {
+                    // Swipe w prawo = POPRZEDNIA
+                    if (currentIndex > 0) {
+                        prevCard();
+                    } else {
+                         // Początek listy - przywróć kartę
+                        renderCard(currentIndex);
+                    }
+                }
+            }, 300);
+        }
+
         // Start
         renderCard(currentIndex);
 
