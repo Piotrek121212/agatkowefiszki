@@ -3,28 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fiszki Renesansowe</title>
-    <link rel="stylesheet" href="style_gallery.css">
+    <title>Fiszki Renesansowe - Quiz</title>
+    <link rel="stylesheet" href="style_quiz.css">
 </head>
 <body>
+    <h1>Agatkowe Fiszki - Quiz</h1>
+    <a href="index.html" class="nav-back">Wróć do Galerii 🏠</a>
 
-    <h1>Agatkowe Fiszki </h1>
-    <div class="hint">od Piotrusia</div>
-
-    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-        <a href="program_nauka.html" class="nav-mode-switch">Przejdź do Trybu Nauki 🎓</a>
-        <a href="quiz.html" class="nav-mode-switch" style="background-color: #ff0055; color: #fff;">Sprawdź się w Quizie 🎲</a>
-    </div>
-    
-    <div class="gallery" id="fiszki-container">
+    <!-- Setup View -->
+    <div id="setup-container" class="quiz-container">
+        <h2>Ustawienia Quizu</h2>
+        <div class="form-group">
+            <label for="question-count">Liczba pytań:</label>
+            <input type="number" id="question-count" min="1" max="50" value="10">
         </div>
+        <div class="form-group">
+            <label for="quiz-mode">Co zgadujemy?</label>
+            <select id="quiz-mode">
+                <option value="author">Autora</option>
+                <option value="date">Datę</option>
+                <option value="location">Lokalizację</option>
+                <option value="school">Szkołę / Technikę</option>
+            </select>
+        </div>
+        <button id="start-btn">Rozpocznij Quiz 🚀</button>
+    </div>
+
+    <!-- Quiz View -->
+    <div id="quiz-container" class="quiz-container" style="display: none;">
+        <div class="progress">Pytanie <span id="current-q">1</span> / <span id="total-q">10</span></div>
+        <div class="image-area">
+             <img id="quiz-image" src="" alt="Obraz quizu">
+        </div>
+        <div id="options-area" class="options-grid">
+            <!-- Buttons generated via JS -->
+        </div>
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+    <!-- Result View -->
+    <div id="result-container" class="quiz-container" style="display: none;">
+        <h2>Koniec Quizu! 🎉</h2>
+        <p>Twój wynik: <span id="score">0</span> / <span id="final-total">0</span></p>
+        <button id="restart-btn">Zagraj ponownie</button>
+    </div>
 
     <script>
-        // BAZA DANYCH - Tutaj znajdują się informacje z Twojej notatki
-        // Aby dodać zdjęcia, zapisz pliki .jpg w folderze ze stroną i wpisz ich nazwy w polu "img"
+        // BAZA DANYCH (Sklonowana z program_nauka.html)
         const artworkData = [
             {
-                img: "giotto.jpg", // Nazwa pliku zdjęcia
+                img: "giotto.jpg",
                 title: "Opłakiwanie",
                 author: "Giotto",
                 date: "1304-1306",
@@ -449,58 +477,149 @@
             }
         ];
 
-        const container = document.getElementById('fiszki-container');
+        // LOGIKA QUIZU
+        
+        let quizQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isAnswering = false;
 
-        artworkData.forEach(item => {
-            // Tworzenie elementów HTML
-            const card = document.createElement('div');
-            card.className = 'card';
+        const setupContainer = document.getElementById('setup-container');
+        const quizContainer = document.getElementById('quiz-container');
+        const resultContainer = document.getElementById('result-container');
 
-            const inner = document.createElement('div');
-            inner.className = 'card-inner';
+        const quizImage = document.getElementById('quiz-image');
+        const optionsArea = document.getElementById('options-area');
+        const currentQSpan = document.getElementById('current-q');
+        const totalQSpan = document.getElementById('total-q');
+        const feedbackDiv = document.getElementById('feedback');
 
-            // PRZÓD KARTY (OBRAZ)
-            const front = document.createElement('div');
-            front.className = 'card-front';
-            
-            // Sprawdzamy czy obrazek istnieje (prostym tekstem alt)
-            front.innerHTML = `<img src="${item.img}" alt="${item.title}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                               <div class="placeholder" style="display:none;">Zdjęcie niedostępne:<br>${item.img}</div>`;
+        const scoreSpan = document.getElementById('score');
+        const finalTotalSpan = document.getElementById('final-total');
 
-            // TYŁ KARTY (TEKST)
-            const back = document.createElement('div');
-            back.className = 'card-back';
-            back.innerHTML = `
-                <h2>${item.title}</h2>
-                <div>
-                    <span class="label">Autor:</span>
-                    <p>${item.author}</p>
-                </div>
-                <div>
-                    <span class="label">Data:</span>
-                    <p>${item.date}</p>
-                </div>
-                <div>
-                    <span class="label">Lokalizacja:</span>
-                    <p>${item.location}</p>
-                </div>
-                <div>
-                    <span class="label">Szkoła/Technika:</span>
-                    <p>${item.school}</p>
-                </div>
-            `;
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
 
-            // Składanie karty
-            inner.appendChild(front);
-            inner.appendChild(back);
-            card.appendChild(inner);
-            container.appendChild(card);
-
-            // Obsługa kliknięcia (obracanie)
-            card.addEventListener('click', function() {
-                this.classList.toggle('is-flipped');
-            });
+        startBtn.addEventListener('click', startQuiz);
+        restartBtn.addEventListener('click', () => {
+            resultContainer.style.display = 'none';
+            setupContainer.style.display = 'flex';
         });
+
+        function startQuiz() {
+            const countInput = document.getElementById('question-count');
+            const modeSelect = document.getElementById('quiz-mode');
+            
+            let count = parseInt(countInput.value);
+            const mode = modeSelect.value;
+
+            if (count > artworkData.length) count = artworkData.length;
+            if (count < 1) count = 1;
+
+            quizQuestions = generateQuestions(count, mode);
+            currentQuestionIndex = 0;
+            score = 0;
+
+            setupContainer.style.display = 'none';
+            quizContainer.style.display = 'flex';
+            
+            renderQuestion();
+        }
+
+        function generateQuestions(count, mode) {
+            // Pula wszystkich unikalnych wartości dla danego trybu (do losowania błędnych odpowiedzi)
+            const allValues = [...new Set(artworkData.map(item => item[mode]))];
+            
+            // Tasujemy dzieła sztuki, żeby wybrać pytania
+            const shuffledArtworks = shuffleArray([...artworkData]);
+            const selectedArtworks = shuffledArtworks.slice(0, count);
+
+            return selectedArtworks.map(artwork => {
+                const correctAnswer = artwork[mode];
+                let distractors = allValues.filter(val => val !== correctAnswer);
+                
+                // Losujemy 3 błędne odpowiedzi
+                distractors = shuffleArray(distractors).slice(0, 3);
+                
+                // Dokładamy poprawną i tasujemy opcje
+                const options = shuffleArray([correctAnswer, ...distractors]);
+                
+                return {
+                    image: artwork.img,
+                    correctAnswer: correctAnswer,
+                    options: options
+                };
+            });
+        }
+
+        function renderQuestion() {
+            isAnswering = true;
+            feedbackDiv.innerText = "";
+            optionsArea.innerHTML = "";
+            
+            const q = quizQuestions[currentQuestionIndex];
+            
+            quizImage.src = q.image;
+            currentQSpan.innerText = currentQuestionIndex + 1;
+            totalQSpan.innerText = quizQuestions.length;
+
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.classList.add('option-btn');
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(btn, opt, q.correctAnswer);
+                optionsArea.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(btn, selected, correct) {
+            if (!isAnswering) return;
+            isAnswering = false;
+
+            const allBtns = optionsArea.querySelectorAll('button');
+
+            if (selected === correct) {
+                score++;
+                btn.classList.add('correct');
+                feedbackDiv.innerText = "Dobrze! 👍";
+                feedbackDiv.style.color = "#28a745";
+            } else {
+                btn.classList.add('wrong');
+                feedbackDiv.innerText = "Źle 😢 Prawidłowa odpowiedź to: " + correct;
+                feedbackDiv.style.color = "#dc3545";
+                
+                // Pokaż poprawną
+                allBtns.forEach(b => {
+                    if (b.innerText === correct) b.classList.add('correct');
+                });
+            }
+
+            // Następne pytanie po opóźnieniu
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < quizQuestions.length) {
+                    renderQuestion();
+                } else {
+                    showResults();
+                }
+            }, 2000);
+        }
+
+        function showResults() {
+            quizContainer.style.display = 'none';
+            resultContainer.style.display = 'flex';
+            scoreSpan.innerText = score;
+            finalTotalSpan.innerText = quizQuestions.length;
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
     </script>
 </body>
 </html>
