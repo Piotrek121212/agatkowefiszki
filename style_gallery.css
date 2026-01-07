@@ -146,3 +146,36 @@ h1 {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
 }
+
+/* Filtracja */
+.filter-container {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+}
+
+.filter-container input, .filter-container select {
+    padding: 12px;
+    border-radius: 25px;
+    border: none;
+    font-size: 1rem;
+    background: #333;
+    color: #fff;
+    outline: none;
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+}
+
+.filter-container input:focus, .filter-container select:focus {
+    background: #444;
+    box-shadow: 0 0 0 2px #00d2ff;
+}
+
+.filter-container select {
+    cursor: pointer;
+}

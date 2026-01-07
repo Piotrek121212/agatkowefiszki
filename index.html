@@ -15,6 +15,15 @@
         <a href="program_nauka.html" class="nav-mode-switch">Przejdź do Trybu Nauki 🎓</a>
         <a href="quiz.html" class="nav-mode-switch" style="background-color: #ff0055; color: #fff;">Sprawdź się w Quizie 🎲</a>
     </div>
+
+    <!-- Filtracja -->
+    <div class="filter-container">
+        <input type="text" id="search-input" placeholder="Szukaj (Autor, Tytuł)...">
+        <select id="school-select">
+            <option value="all">Wszystkie Szkoły</option>
+            <!-- Opcje generowane JS -->
+        </select>
+    </div>
     
     <div class="gallery" id="fiszki-container">
         </div>
@@ -450,57 +459,104 @@
         ];
 
         const container = document.getElementById('fiszki-container');
+        const searchInput = document.getElementById('search-input');
+        const schoolSelect = document.getElementById('school-select');
 
-        artworkData.forEach(item => {
-            // Tworzenie elementów HTML
-            const card = document.createElement('div');
-            card.className = 'card';
-
-            const inner = document.createElement('div');
-            inner.className = 'card-inner';
-
-            // PRZÓD KARTY (OBRAZ)
-            const front = document.createElement('div');
-            front.className = 'card-front';
-            
-            // Sprawdzamy czy obrazek istnieje (prostym tekstem alt)
-            front.innerHTML = `<img src="${item.img}" alt="${item.title}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                               <div class="placeholder" style="display:none;">Zdjęcie niedostępne:<br>${item.img}</div>`;
-
-            // TYŁ KARTY (TEKST)
-            const back = document.createElement('div');
-            back.className = 'card-back';
-            back.innerHTML = `
-                <h2>${item.title}</h2>
-                <div>
-                    <span class="label">Autor:</span>
-                    <p>${item.author}</p>
-                </div>
-                <div>
-                    <span class="label">Data:</span>
-                    <p>${item.date}</p>
-                </div>
-                <div>
-                    <span class="label">Lokalizacja:</span>
-                    <p>${item.location}</p>
-                </div>
-                <div>
-                    <span class="label">Szkoła/Technika:</span>
-                    <p>${item.school}</p>
-                </div>
-            `;
-
-            // Składanie karty
-            inner.appendChild(front);
-            inner.appendChild(back);
-            card.appendChild(inner);
-            container.appendChild(card);
-
-            // Obsługa kliknięcia (obracanie)
-            card.addEventListener('click', function() {
-                this.classList.toggle('is-flipped');
-            });
+        // 1. Generowanie opcji filtra szkół
+        const uniqueSchools = [...new Set(artworkData.map(item => item.school))].sort();
+        uniqueSchools.forEach(school => {
+            const option = document.createElement('option');
+            option.value = school;
+            option.innerText = school;
+            schoolSelect.appendChild(option);
         });
+
+        // 2. Funkcja renderująca
+        function renderGallery(data) {
+            container.innerHTML = ''; // Czyścimy galerię
+
+            if (data.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-size: 1.5rem; color: #888;">Nic nie znaleziono 🕵️‍♂️</div>';
+                return;
+            }
+
+            data.forEach(item => {
+                // Tworzenie elementów HTML
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const inner = document.createElement('div');
+                inner.className = 'card-inner';
+
+                // PRZÓD KARTY (OBRAZ)
+                const front = document.createElement('div');
+                front.className = 'card-front';
+                
+                // Sprawdzamy czy obrazek istnieje (prostym tekstem alt)
+                front.innerHTML = `<img src="${item.img}" alt="${item.title}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                <div class="placeholder" style="display:none;">Zdjęcie niedostępne:<br>${item.img}</div>`;
+
+                // TYŁ KARTY (TEKST)
+                const back = document.createElement('div');
+                back.className = 'card-back';
+                back.innerHTML = `
+                    <h2>${item.title}</h2>
+                    <div>
+                        <span class="label">Autor:</span>
+                        <p>${item.author}</p>
+                    </div>
+                    <div>
+                        <span class="label">Data:</span>
+                        <p>${item.date}</p>
+                    </div>
+                    <div>
+                        <span class="label">Lokalizacja:</span>
+                        <p>${item.location}</p>
+                    </div>
+                    <div>
+                        <span class="label">Szkoła/Technika:</span>
+                        <p>${item.school}</p>
+                    </div>
+                `;
+
+                // Składanie karty
+                inner.appendChild(front);
+                inner.appendChild(back);
+                card.appendChild(inner);
+                container.appendChild(card);
+
+                // Obsługa kliknięcia (obracanie)
+                card.addEventListener('click', function() {
+                    this.classList.toggle('is-flipped');
+                });
+            });
+        }
+
+        // 3. Funkcja filtrująca
+        function filterGallery() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const schoolFilter = schoolSelect.value;
+
+            const filteredData = artworkData.filter(item => {
+                const matchesSearch = 
+                    item.title.toLowerCase().includes(searchTerm) || 
+                    item.author.toLowerCase().includes(searchTerm) ||
+                    item.location.toLowerCase().includes(searchTerm);
+                
+                const matchesSchool = schoolFilter === 'all' || item.school === schoolFilter;
+
+                return matchesSearch && matchesSchool;
+            });
+
+            renderGallery(filteredData);
+        }
+
+        // Event Listeners
+        searchInput.addEventListener('input', filterGallery);
+        schoolSelect.addEventListener('change', filterGallery);
+
+        // Start
+        renderGallery(artworkData);
     </script>
 </body>
 </html>

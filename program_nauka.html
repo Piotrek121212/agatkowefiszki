@@ -19,9 +19,13 @@
 
     <div class="counter" id="counter-display">1 / ?</div>
 
-    <div class="controls">
+    <div class="controls secondary-controls">
+         <button id="random-btn">Losowe: OFF</button>
+         <button id="fav-filter-btn">😈 Trudne</button>
+    </div>
+
+    <div class="controls primary-controls">
         <button id="prev-btn">Poprzednia</button>
-        <button id="random-btn">Losowe: OFF</button>
         <button id="next-btn">Następna</button>
     </div>
 
@@ -455,28 +459,52 @@
         ];
 
         // Zmienne stanu
-        let currentData = [...originalArtworkData]; // Kopia do pracy (może być tasowana)
+        let currentData = [...originalArtworkData]; // Kopia do pracy
         let currentIndex = 0;
         let isRandomMode = false;
+        let isFavFilterMode = false;
+
+        // Ładujemy trudne karty z localStorage (zapisane jako tablica tytułów)
+        let difficult = JSON.parse(localStorage.getItem('agatkoweFiszkiTrudne')) || [];
 
         // Elementy DOM
         const cardContainer = document.getElementById('single-card-container');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
         const randomBtn = document.getElementById('random-btn');
+        const favFilterBtn = document.getElementById('fav-filter-btn');
         const counterDisplay = document.getElementById('counter-display');
 
         // Funkcje
         function renderCard(index) {
+            if (currentData.length === 0) {
+                 cardContainer.innerHTML = '<div style="color:white; text-align:center; padding-top: 100px;">Brak kart do wyświetlenia. <br>Oznacz najpierw coś diabełkiem! 😈</div>';
+                 counterDisplay.innerText = "0 / 0";
+                 prevBtn.disabled = true;
+                 nextBtn.disabled = true;
+                 return;
+            }
+
             const item = currentData[index];
+            const isDifficult = difficult.includes(item.title);
+
             const cardHTML = `
                 <div class="card" onclick="this.classList.toggle('is-flipped')">
                     <div class="card-inner">
                         <div class="card-front">
+                            <button class="devil-btn ${isDifficult ? 'is-active' : ''}" 
+                                    onclick="event.stopPropagation(); toggleDifficult('${item.title}')"
+                                    title="${isDifficult ? 'Usuń z trudnych' : 'Dodaj do trudnych'}">
+                                😈
+                            </button>
                             <img src="${item.img}" alt="${item.title}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                             <div class="placeholder" style="display:none;">Zdjęcie niedostępne:<br>${item.img}</div>
                         </div>
                         <div class="card-back">
+                            <button class="devil-btn ${isDifficult ? 'is-active' : ''}" 
+                                    onclick="event.stopPropagation(); toggleDifficult('${item.title}')">
+                                😈
+                            </button>
                             <h2>${item.title}</h2>
                             <div>
                                 <span class="label">Autor:</span>
@@ -509,14 +537,31 @@
             cardContainer.style.transition = 'opacity 0.15s ease';
         }
 
+        function toggleDifficult(title) {
+            if (difficult.includes(title)) {
+                difficult = difficult.filter(t => t !== title);
+            } else {
+                difficult.push(title);
+            }
+            localStorage.setItem('agatkoweFiszkiTrudne', JSON.stringify(difficult));
+            
+            // Jeśli jesteśmy w trybie "tylko ulubione" i odznaczymy kartę, musimy odświeżyć listę
+            if (isFavFilterMode) {
+                applyFilters();
+            } else {
+                // Odśwież tylko wygląd obecnej karty (żeby gwiazdka się zmieniła bez przeładowania listy)
+                renderCard(currentIndex);
+            }
+        }
+
         function updateCounter() {
+            if (currentData.length === 0) return;
             counterDisplay.innerText = `${currentIndex + 1} / ${currentData.length}`;
             
             // Obsługa stanu przycisków
-            prevBtn.disabled = (!isRandomMode && currentIndex === 0); // W klasycznym trybie blokujemy 'wstecz' na starcie
+            prevBtn.disabled = (!isRandomMode && currentIndex === 0); 
             prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
             
-            // Zapętlanie w trybie losowym nie ma końca, w trybie zwykłym blokuje next na końcu
             nextBtn.disabled = (!isRandomMode && currentIndex === currentData.length - 1);
             nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
         }
@@ -525,8 +570,7 @@
             if (currentIndex < currentData.length - 1) {
                 currentIndex++;
                 renderCard(currentIndex);
-            } else if (isRandomMode) {
-                 // W trybie losowym po dotarciu do 'końca' potasowanej listy, tasujemy od nowa
+            } else if (isRandomMode && currentData.length > 0) {
                  reshuffle();
             }
         }
@@ -540,33 +584,68 @@
 
         function toggleRandomMode() {
             isRandomMode = !isRandomMode;
-            
             if (isRandomMode) {
                 randomBtn.innerText = "Losowe: ON";
                 randomBtn.classList.add('active-mode');
-                reshuffle(); // Tasujemy i startujemy od nowa
             } else {
                 randomBtn.innerText = "Losowe: OFF";
                 randomBtn.classList.remove('active-mode');
-                // Wracamy do oryginału
-                currentData = [...originalArtworkData];
-                currentIndex = 0;
-                renderCard(currentIndex);
             }
+            applyFilters(); // Aplikujemy filtry i resetujemy listę/index
         }
 
-        function reshuffle() {
-            // Algorytm Fisher-Yates shuffle
-            for (let i = currentData.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [currentData[i], currentData[j]] = [currentData[j], currentData[i]];
+        function toggleFavFilter() {
+            isFavFilterMode = !isFavFilterMode;
+            if (isFavFilterMode) {
+                favFilterBtn.classList.add('active-mode');
+                favFilterBtn.innerText = "😈 Trudne: ON";
+            } else {
+                favFilterBtn.classList.remove('active-mode');
+                favFilterBtn.innerText = "😈 Trudne";
             }
+            applyFilters();
+        }
+
+        function applyFilters() {
+            // 1. Zaczynamy od bazy
+            let newData = [...originalArtworkData];
+
+            // 2. Filtrujemy trudne
+            if (isFavFilterMode) {
+                newData = newData.filter(item => difficult.includes(item.title));
+            }
+
+            // 3. Obsługa losowości
+            // W poprzedniej wersji tasowaliśmy tablicę "currentData".
+            // Tutaj zrobimy to samo.
+            if (isRandomMode) {
+                newData = shuffleArray(newData);
+            }
+
+            currentData = newData;
             currentIndex = 0;
             renderCard(currentIndex);
         }
 
+        function reshuffle() {
+            // Ponowne tasowanie obecnego zbioru
+            currentData = shuffleArray(currentData);
+            currentIndex = 0;
+            renderCard(currentIndex);
+        }
+
+        function shuffleArray(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
         // Event Listeners - Klawiatura
         document.addEventListener('keydown', (e) => {
+            if (currentData.length === 0) return;
             if (e.key === 'ArrowRight' || e.key === ' ') {
                 if(!isRandomMode && currentIndex === currentData.length - 1) return; // Stop at end
                 nextCard();
@@ -579,6 +658,7 @@
         nextBtn.addEventListener('click', nextCard);
         prevBtn.addEventListener('click', prevCard);
         randomBtn.addEventListener('click', toggleRandomMode);
+        favFilterBtn.addEventListener('click', toggleFavFilter);
 
         // Start
         renderCard(currentIndex);
