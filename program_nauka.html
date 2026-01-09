@@ -64,6 +64,26 @@
         const pwaInstallBtn = document.getElementById('pwa-install-btn');
 
         // Funkcje
+        function formatToCentury(dateStr) {
+             const yearMatch = dateStr.match(/(\d{4})/);
+             if (yearMatch) {
+                 const year = parseInt(yearMatch[1]);
+                 const century = Math.ceil(year / 100);
+                 const half = (year % 100 === 0 || year % 100 > 50) ? "II" : "I";
+                 const romans = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"];
+                 const cRoman = romans[century] || century;
+                 return `${half} połowa ${cRoman} wieku`;
+             }
+             const textMatch = dateStr.match(/^(\d)\s*poł\.?\s*([IVX]+)\s*w\.?/i);
+             if (textMatch) {
+                 const halfNum = textMatch[1];
+                 const centuryRom = textMatch[2];
+                 const halfRom = halfNum === "1" ? "I" : "II";
+                 return `${halfRom} połowa ${centuryRom} wieku`;
+             }
+             return dateStr;
+        }
+
         function renderCard(index) {
             if (currentData.length === 0) {
                  if(isKnownFilterMode && known.length > 0) {
@@ -118,7 +138,7 @@
                             </div>
                             <div>
                                 <span class="label">Data:</span>
-                                <p>${item.date}</p>
+                                <p>${formatToCentury(item.date)}</p>
                             </div>
                             <div>
                                 <span class="label">Lokalizacja:</span>

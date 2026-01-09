@@ -104,16 +104,45 @@
             renderQuestion();
         }
 
+        function formatToCentury(dateStr) {
+             const yearMatch = dateStr.match(/(\d{4})/);
+             if (yearMatch) {
+                 const year = parseInt(yearMatch[1]);
+                 const century = Math.ceil(year / 100);
+                 const half = (year % 100 === 0 || year % 100 > 50) ? "II" : "I";
+                 const romans = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"];
+                 const cRoman = romans[century] || century;
+                 return `${half} połowa ${cRoman} wieku`;
+             }
+             const textMatch = dateStr.match(/^(\d)\s*poł\.?\s*([IVX]+)\s*w\.?/i);
+             if (textMatch) {
+                 const halfNum = textMatch[1];
+                 const centuryRom = textMatch[2];
+                 const halfRom = halfNum === "1" ? "I" : "II";
+                 return `${halfRom} połowa ${centuryRom} wieku`;
+             }
+             return dateStr;
+        }
+
         function generateQuestions(count, mode) {
-            // Pula wszystkich unikalnych wartości dla danego trybu (do losowania błędnych odpowiedzi)
-            const allValues = [...new Set(artworkData.map(item => item[mode]))];
+            // Przetwarzanie danych (formatowanie dat jeśli potrzeba)
+            const processedData = artworkData.map(item => {
+                let val = item[mode];
+                if (mode === 'date') {
+                    val = formatToCentury(val);
+                }
+                return { ...item, _answer: val };
+            });
+
+            // Pula wszystkich unikalnych wartości dla danego trybu
+            const allValues = [...new Set(processedData.map(item => item._answer))];
             
             // Tasujemy dzieła sztuki, żeby wybrać pytania
-            const shuffledArtworks = shuffleArray([...artworkData]);
+            const shuffledArtworks = shuffleArray([...processedData]);
             const selectedArtworks = shuffledArtworks.slice(0, count);
 
             return selectedArtworks.map(artwork => {
-                const correctAnswer = artwork[mode];
+                const correctAnswer = artwork._answer;
                 let distractors = allValues.filter(val => val !== correctAnswer);
                 
                 // Losujemy 3 błędne odpowiedzi

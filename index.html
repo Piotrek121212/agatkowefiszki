@@ -20,6 +20,10 @@
     <!-- Filtracja -->
     <div class="filter-container">
         <input type="text" id="search-input" placeholder="Szukaj (Autor, Tytuł)...">
+        <select id="author-select">
+            <option value="all">Wszyscy Artyści</option>
+            <!-- Opcje generowane JS -->
+        </select>
         <select id="school-select">
             <option value="all">Wszystkie Szkoły</option>
             <!-- Opcje generowane JS -->
@@ -43,6 +47,7 @@
         const container = document.getElementById('fiszki-container');
         const searchInput = document.getElementById('search-input');
         const schoolSelect = document.getElementById('school-select');
+        const authorSelect = document.getElementById('author-select');
 
         // 1. Generowanie opcji filtra szkół
         const uniqueSchools = [...new Set(artworkData.map(item => item.school))].sort();
@@ -53,7 +58,37 @@
             schoolSelect.appendChild(option);
         });
 
-        // 2. Funkcja renderująca
+        // 1b. Generowanie opcji filtra autorów
+        const uniqueAuthors = [...new Set(artworkData.map(item => item.author))].sort();
+        uniqueAuthors.forEach(author => {
+            const option = document.createElement('option');
+            option.value = author;
+            option.innerText = author;
+            authorSelect.appendChild(option);
+        });
+
+        // 2. Formatowanie daty
+        function formatToCentury(dateStr) {
+             const yearMatch = dateStr.match(/(\d{4})/);
+             if (yearMatch) {
+                 const year = parseInt(yearMatch[1]);
+                 const century = Math.ceil(year / 100);
+                 const half = (year % 100 === 0 || year % 100 > 50) ? "II" : "I";
+                 const romans = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"];
+                 const cRoman = romans[century] || century;
+                 return `${half} połowa ${cRoman} wieku`;
+             }
+             const textMatch = dateStr.match(/^(\d)\s*poł\.?\s*([IVX]+)\s*w\.?/i);
+             if (textMatch) {
+                 const halfNum = textMatch[1];
+                 const centuryRom = textMatch[2];
+                 const halfRom = halfNum === "1" ? "I" : "II";
+                 return `${halfRom} połowa ${centuryRom} wieku`;
+             }
+             return dateStr;
+        }
+
+        // 3. Funkcja renderująca
         function renderGallery(data) {
             container.innerHTML = ''; // Czyścimy galerię
 
@@ -89,7 +124,7 @@
                     </div>
                     <div>
                         <span class="label">Data:</span>
-                        <p>${item.date}</p>
+                        <p>${formatToCentury(item.date)}</p>
                     </div>
                     <div>
                         <span class="label">Lokalizacja:</span>
@@ -114,10 +149,11 @@
             });
         }
 
-        // 3. Funkcja filtrująca
+        // 4. Funkcja filtrująca
         function filterGallery() {
             const searchTerm = searchInput.value.toLowerCase();
             const schoolFilter = schoolSelect.value;
+            const authorFilter = authorSelect.value;
 
             const filteredData = artworkData.filter(item => {
                 const matchesSearch = 
@@ -126,8 +162,9 @@
                     item.location.toLowerCase().includes(searchTerm);
                 
                 const matchesSchool = schoolFilter === 'all' || item.school === schoolFilter;
+                const matchesAuthor = authorFilter === 'all' || item.author === authorFilter;
 
-                return matchesSearch && matchesSchool;
+                return matchesSearch && matchesSchool && matchesAuthor;
             });
 
             renderGallery(filteredData);
@@ -136,6 +173,7 @@
         // Event Listeners
         searchInput.addEventListener('input', filterGallery);
         schoolSelect.addEventListener('change', filterGallery);
+        authorSelect.addEventListener('change', filterGallery);
 
         // Start
         renderGallery(artworkData);
